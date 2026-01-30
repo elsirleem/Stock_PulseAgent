@@ -1,0 +1,91 @@
+# Product Requirements Document: StockPulse WhatsApp Agent
+
+## 1. Executive Summary
+**StockPulse** is a personal AI financial agent that allows users to track their stock portfolios and watchlists via WhatsApp. Built with **Python**, **FastAPI**, and **LangGraph**, the agent provides real-time market data, interactive chat capabilities, and proactive daily portfolio summaries.
+
+---
+
+## 2. Technical Stack
+| Layer               | Technology                           | Role                                               |
+|:--------------------|:-------------------------------------|:---------------------------------------------------|
+| **Language** | Python 3.11+                         | Core programming language                          |
+| **Framework** | FastAPI                              | Webhook handling and API management                |
+| **Orchestration** | LangGraph                            | Stateful agent logic, memory, and tool use         |
+| **Communication** | Twilio WhatsApp API                  | Messaging interface (Inbound/Outbound)             |
+| **Data Provider** | yfinance                             | Free real-time and historical stock data           |
+| **Database** | SQLite                               | Local storage for user portfolios and watchlists   |
+| **Memory** | LangGraph SqliteSaver                | Maintains conversation state across sessions        |
+| **Automation** | APScheduler                          | Triggers the daily morning update                  |
+| **Tunneling** | ngrok                                | Localhost to Public URL for Twilio Webhooks        |
+
+---
+
+## 3. Functional Requirements
+
+### 3.1 Conversational Interface (Inbound)
+* **Natural Language Queries:** Users can ask "What is the price of Tesla?" or "How is my portfolio doing today?"
+* **Portfolio Management:**
+    * **Add Stocks:** "I bought 5 shares of AAPL at $175."
+    * **Remove/Watch:** "Stop tracking MSFT" or "Add NVDA to my watchlist."
+* **Market Insights:** Users can ask for a summary of stock performance or general market trends.
+
+### 3.2 Automated Daily Updates (Outbound)
+* **Trigger:** Every day at a specified time (e.g., 08:30 AM).
+* **Content:**
+    * Summary of all held stocks.
+    * Current price vs. Purchase price.
+    * Percentage change (Daily and Total).
+    * Total estimated portfolio value.
+
+### 3.3 Persistence & Memory
+* **Thread Consistency:** The agent uses the user's WhatsApp number as a `thread_id` to remember previous interactions.
+* **Stateful Storage:** All stock holdings are stored in a local SQLite database.
+
+---
+
+## 4. System Architecture
+
+1.  **Input:** User sends a WhatsApp message.
+2.  **Gateway:** Twilio receives the message and triggers a `POST /whatsapp` request to the FastAPI server.
+3.  **Processing:**
+    * FastAPI parses the request.
+    * LangGraph invokes the `StateGraph` using the `thread_id`.
+    * The Agent decides whether to call a tool (e.g., `get_stock_price`).
+4.  **Output:** The Agent generates a text response, which FastAPI returns to Twilio via TwiML (XML).
+5.  **Scheduler:** A background thread (APScheduler) checks for the update time and pushes messages to the user using the Twilio REST Client.
+
+---
+
+## 5. Tool Definitions (LangGraph Tools)
+
+* `fetch_price(ticker)`: Retrieves current price and % change from Yahoo Finance.
+* `update_portfolio(ticker, amount, price)`: Writes/updates the SQLite table with user holdings.
+* `calculate_portfolio_stats()`: Logic to aggregate all holdings and calculate gains/losses.
+
+---
+
+## 6. Project Roadmap
+
+### Phase 1: Environment Setup
+* Install dependencies.
+* Configure Twilio Sandbox for WhatsApp.
+* Setup `ngrok` for local development.
+
+### Phase 2: Core Agent Development
+* Define the LangGraph state and nodes.
+* Implement `yfinance` tools.
+* Connect SQLite for persistent storage.
+
+### Phase 3: WhatsApp Integration
+* Build the FastAPI `/whatsapp` endpoint.
+* Handle TwiML response formatting.
+
+### Phase 4: Automation
+* Implement APScheduler for proactive daily messaging.
+
+---
+
+## 7. Success Metrics
+* **Latency:** Agent responds to WhatsApp queries in < 3 seconds.
+* **Accuracy:** Financial data matches Yahoo Finance live tickers.
+* **Reliability:** Daily updates are delivered within +/- 5 minutes of the scheduled time.
